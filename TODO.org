@@ -1,0 +1,12 @@
+* TODO
+** Simple Representation (Digits)
+   - [ ] Addition of positive numbers
+   - [ ] subtraction of positive numbers
+   - [ ] multiplication
+   - [ ] integral division w/ remainder
+   - [ ] root operations (probably just search)
+   - [ ] exponentation
+** Design (later)
+   - [ ] Consider other representations
+     - [ ] String
+     - [ ] base 2^32 or something instead of 10
