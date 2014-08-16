@@ -78,3 +78,32 @@ dropWhile p =
               then loop xs'
               else xs
   in loop
+
+zero : BigInt
+zero = Zero
+
+negate : BigInt -> BigInt
+negate i = case i of
+  Zero -> Zero
+  Positive ds -> Negative ds
+  Negative ds -> Positive ds
+
+add : BigInt -> BigInt -> BigInt
+add m n = case (m, n) of
+  (Zero, _) -> n
+  (_, Zero) -> m
+  (Positive ds1, Positive ds2) -> Positive (addDigits ds1 ds2)
+  (Negative ds1, Negative ds2) -> Negative (addDigits ds1 ds2)
+  (Positive pos, Negative neg) -> subtractDigits pos neg
+  (Negative neg, Positive pos) -> subtractDigits pos neg
+
+-- | TODO
+addDigits : Digits -> Digits -> Digits
+addDigits ds1 ds2 = [1]
+
+-- | TODO
+subtractDigits : Digits -> Digits -> BigInt
+subtractDigits pos neg = Zero
+
+subtract : BigInt -> BigInt -> BigInt
+subtract m n = add m (negate n)
