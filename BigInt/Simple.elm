@@ -1,9 +1,11 @@
 module BigInt.Simple where
 
-import Either (Either(..), either)
+import Basics
 import Dict (Dict)
 import Dict
+import Either (Either(..), either)
 import List
+import Native.Error
 import String
 
 import BigInt.Err ((<=<))
@@ -97,7 +99,7 @@ add m n = case (m, n) of
   (Positive pos, Negative neg) -> subtractDigits pos neg
   (Negative neg, Positive pos) -> subtractDigits pos neg
 
--- | TODO
+-- | Addition of natural numbers
 addDigits : Digits -> Digits -> Digits
 addDigits ds1 ds2 = [1]
 
@@ -107,3 +109,25 @@ subtractDigits pos neg = Zero
 
 subtract : BigInt -> BigInt -> BigInt
 subtract m n = add m (negate n)
+
+compare : BigInt -> BigInt -> Order
+compare m n = case (m, n) of
+  (Zero, Zero) -> EQ
+  (Zero, Positive _) -> LT
+  (Zero, Negative _) -> GT
+  (Positive _, Zero) -> GT
+  (Negative _, Zero) -> LT
+  (Positive _, Negative _) -> GT
+  (Negative _, Positive _) -> LT
+  (Positive ds1, Positive ds2) -> compareDigits ds1 ds2
+  (Negative ds1, Negative ds2) -> compareDigits ds2 ds1
+
+compareDigits : Digits -> Digits -> Order
+compareDigits ds1 ds2 = case Basics.compare (length ds1) (length ds2) of
+  EQ  -> fstDiff . reverse <| zipWith Basics.compare ds1 ds2
+  ord -> ord
+
+fstDiff : [Order] -> Order
+fstDiff ords = case dropWhile ((==) EQ) ords of
+  []     -> EQ
+  ord::_ -> ord
