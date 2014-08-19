@@ -43,7 +43,7 @@ safeFromString =
 
       interpret : (Bool, [Int]) -> BigInt
       interpret (b, is) = 
-        let shortened = dropWhile ((==) 0) is
+        let shortened = dropZeros is
             ctor b = if b then Positive else Negative
               
         in if List.isEmpty shortened
@@ -125,7 +125,32 @@ addDigits ds1 ds2 =
 
 -- | TODO
 subtractDigits : Digits -> Digits -> BigInt
-subtractDigits pos neg = Native.Error.raise "Not implemented: subtraction"
+subtractDigits pos neg =
+  case compareDigits pos neg of
+    EQ -> Zero
+    LT -> Negative (subtractFromGreater neg pos)
+    GT -> Positive (subtractFromGreater pos neg)
+
+-- First argument is assumed to be larger
+subtractFromGreater : Digits -> Digits -> Digits
+subtractFromGreater minuend subtrahend =
+  let go minuend subtrahend carry diffAcc = case (minuend, subtrahend) of
+        ([], _) -> diffAcc
+        (_, []) -> carryOut minuend carry diffAcc
+        (m::ms, s::ss) ->
+        let newM = m - carry
+            (newM', newCarry) = if newM < s
+                                then (newM + 10, 1)
+                                else (newM, 0)
+        in go ms ss newCarry (newM' - s :: diffAcc)
+      carryOut minuend carry diffAcc = case minuend of
+        []   -> diffAcc
+        m::ms -> let newM = m - carry
+                     (newM', newCarry) = if newM < 0
+                                         then (newM + 10, 1)
+                                         else (newM, 0)
+                 in carryOut ms newCarry (newM' :: diffAcc)
+  in reverse . dropZeros <| go minuend subtrahend 0 []
 
 subtract : BigInt -> BigInt -> BigInt
 subtract m n = add m (negate n)
@@ -160,12 +185,15 @@ quotRem : BigInt -> BigInt -> (BigInt, BigInt)
 quotRem m n = case (m, n) of
   (_, Zero) -> Native.Error.raise "Error, quotRem: can't divide by zero"
   (Zero, _) -> (Zero, Zero)
-  (Positive ds1, Positive ds2) -> Positive (longDivide ds1 ds2)
-  (Positive ds1, Negative ds2) -> Negative (longDivide ds1 ds2)
-  (Negative ds1, Positive ds2) -> Negative (longDivide ds1 ds2)
-  (Negative ds1, Negative ds2) -> Positive (longDivide ds1 ds2)
+  (Positive ds1, Positive ds2) -> positively (longDivide ds1 ds2)
+  (Positive ds1, Negative ds2) -> negatively (longDivide ds1 ds2)
+  (Negative ds1, Positive ds2) -> negatively (longDivide ds1 ds2)
+  (Negative ds1, Negative ds2) -> positively (longDivide ds1 ds2)
 
-longDivide : Digits -> Digits -> Digits
+positively (m, n) = (Positive m, n)
+negatively (m, n) = (Negative m, n)
+
+longDivide : Digits -> Digits -> (Digits, BigInt)
 longDivide ds1 ds2 = Native.Error.raise "Not implemented: division"
 
 -- Comparison
@@ -178,3 +206,6 @@ fstDiff : [Order] -> Order
 fstDiff ords = case dropWhile ((==) EQ) ords of
   []     -> EQ
   ord::_ -> ord
+
+dropZeros : [Int] -> [Int]
+dropZeros = dropWhile ((==) 0)
