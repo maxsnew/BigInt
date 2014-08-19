@@ -172,13 +172,24 @@ multiply : BigInt -> BigInt -> BigInt
 multiply m n = case (m, n) of
   (Zero, _) -> Zero
   (_, Zero) -> Zero
-  (Positive ds1, Positive ds2) -> Positive (multDigits ds1 ds2)
-  (Positive ds1, Negative ds2) -> Negative (multDigits ds1 ds2)
-  (Negative ds1, Positive ds2) -> Negative (multDigits ds1 ds2)
-  (Negative ds1, Negative ds2) -> Positive (multDigits ds1 ds2)
+  (Positive ds1, Positive ds2) -> multDigits ds1 ds2
+  (Positive ds1, Negative ds2) -> negate (multDigits ds1 ds2)
+  (Negative ds1, Positive ds2) -> negate (multDigits ds1 ds2)
+  (Negative ds1, Negative ds2) -> multDigits ds1 ds2
 
-multDigits : Digits -> Digits -> Digits
-multDigits ds1 ds2 = Native.Error.raise "Not implemented: multiplication"
+multDigits : Digits -> Digits -> BigInt
+multDigits ds1 ds2 = 
+  let (big, less) = case compareDigits ds1 ds2 of
+        LT -> (Positive ds2, Positive ds1)
+        _  -> (Positive ds1, Positive ds2)
+      go less acc = case less of
+          Zero       -> acc
+          Positive _ -> go (subtract less one) (add big acc)
+  in go less Zero
+       
+
+one : BigInt
+one = fromString "1"
 
 -- Quotient and remainder
 quotRem : BigInt -> BigInt -> (BigInt, BigInt)
