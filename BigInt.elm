@@ -1,4 +1,4 @@
-module BigInt.Simple where
+module BigInt where
 
 import Basics
 import Dict (Dict)
