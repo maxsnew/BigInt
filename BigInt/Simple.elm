@@ -62,7 +62,7 @@ digits = Dict.fromList [ ('0', 0)
                        , ('6', 6)
                        , ('7', 7)
                        , ('8', 8)
-                       , ('9', 9)]
+                       , ('9', 9) ]
 
 toString : BigInt -> String
 toString i = 
@@ -90,6 +90,7 @@ negate i = case i of
   Positive ds -> Negative ds
   Negative ds -> Positive ds
 
+-- Addition and Subtraction
 add : BigInt -> BigInt -> BigInt
 add m n = case (m, n) of
   (Zero, _) -> n
@@ -99,13 +100,32 @@ add m n = case (m, n) of
   (Positive pos, Negative neg) -> subtractDigits pos neg
   (Negative neg, Positive pos) -> subtractDigits pos neg
 
+
+quotRem10 : Int -> (Int, Int)
+quotRem10 s = (s `div` 10, s `mod` 10)
+
 -- | Addition of natural numbers
 addDigits : Digits -> Digits -> Digits
-addDigits ds1 ds2 = [1]
+addDigits ds1 ds2 = 
+  let pushCarry carry acc = if carry == 0 then acc else carry :: acc
+      go acc carry ds1 ds2 = case (ds1, ds2) of
+        ([], [])             -> pushCarry carry acc
+        ([], d::ds)          -> goWith acc (d + carry) ds
+        (d::ds, [])          -> goOne acc (carry + d) ds
+        (d1::ds1', d2::ds2') -> let (carry', d) = quotRem10 <| d1 + d2 + carry
+                                in go (d::acc) carry' ds1' ds2'
+      goWith acc c' ds = let (carry, d) = quotRem10 <| c'
+                         in goOne (d::acc) carry ds
+
+      goOne acc carry ds = case ds of
+        [] -> pushCarry carry acc
+        (d :: ds') -> let (carry', d') = quotRem10 <| d + carry
+                      in goOne (d'::acc) carry' ds'
+  in reverse <| go [] 0 ds1 ds2
 
 -- | TODO
 subtractDigits : Digits -> Digits -> BigInt
-subtractDigits pos neg = Zero
+subtractDigits pos neg = Native.Error.raise "Not implemented: subtraction"
 
 subtract : BigInt -> BigInt -> BigInt
 subtract m n = add m (negate n)
@@ -122,6 +142,33 @@ compare m n = case (m, n) of
   (Positive ds1, Positive ds2) -> compareDigits ds1 ds2
   (Negative ds1, Negative ds2) -> compareDigits ds2 ds1
 
+-- Multiplication and Division
+multiply : BigInt -> BigInt -> BigInt
+multiply m n = case (m, n) of
+  (Zero, _) -> Zero
+  (_, Zero) -> Zero
+  (Positive ds1, Positive ds2) -> Positive (multDigits ds1 ds2)
+  (Positive ds1, Negative ds2) -> Negative (multDigits ds1 ds2)
+  (Negative ds1, Positive ds2) -> Negative (multDigits ds1 ds2)
+  (Negative ds1, Negative ds2) -> Positive (multDigits ds1 ds2)
+
+multDigits : Digits -> Digits -> Digits
+multDigits ds1 ds2 = Native.Error.raise "Not implemented: multiplication"
+
+-- Quotient and remainder
+quotRem : BigInt -> BigInt -> (BigInt, BigInt)
+quotRem m n = case (m, n) of
+  (_, Zero) -> Native.Error.raise "Error, quotRem: can't divide by zero"
+  (Zero, _) -> (Zero, Zero)
+  (Positive ds1, Positive ds2) -> Positive (longDivide ds1 ds2)
+  (Positive ds1, Negative ds2) -> Negative (longDivide ds1 ds2)
+  (Negative ds1, Positive ds2) -> Negative (longDivide ds1 ds2)
+  (Negative ds1, Negative ds2) -> Positive (longDivide ds1 ds2)
+
+longDivide : Digits -> Digits -> Digits
+longDivide ds1 ds2 = Native.Error.raise "Not implemented: division"
+
+-- Comparison
 compareDigits : Digits -> Digits -> Order
 compareDigits ds1 ds2 = case Basics.compare (length ds1) (length ds2) of
   EQ  -> fstDiff . reverse <| zipWith Basics.compare ds1 ds2
