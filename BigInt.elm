@@ -196,16 +196,29 @@ quotRem : BigInt -> BigInt -> (BigInt, BigInt)
 quotRem m n = case (m, n) of
   (_, Zero) -> Native.Error.raise "Error, quotRem: can't divide by zero"
   (Zero, _) -> (Zero, Zero)
-  (Positive ds1, Positive ds2) -> positively (longDivide ds1 ds2)
-  (Positive ds1, Negative ds2) -> negatively (longDivide ds1 ds2)
-  (Negative ds1, Positive ds2) -> negatively (longDivide ds1 ds2)
-  (Negative ds1, Negative ds2) -> positively (longDivide ds1 ds2)
+  (Positive ds1, Positive ds2) -> divideDigits ds1 ds2
+  (_, Negative _) -> negatively <| quotRem m (negate n)
+  (Negative _, _) -> let (q, r) = quotRem (negate m) n
+                     in if isZero r
+                        then (negate q, r)
+                        else (subtract (negate q) one, subtract n r)
 
-positively (m, n) = (Positive m, n)
-negatively (m, n) = (Negative m, n)
+negatively (m, n) = (negate m, n)
 
-longDivide : Digits -> Digits -> (Digits, BigInt)
-longDivide ds1 ds2 = Native.Error.raise "Not implemented: division"
+-- Euclidean Division, produces quotient and remainder, as in
+--    let (q, r) = longDivide a b
+--    a = bq + r
+divideDigits : Digits -> Digits -> (BigInt, BigInt)
+divideDigits ds1 ds2 = case compareDigits ds1 ds2 of
+  LT -> (zero, Positive ds1)
+  EQ -> (one, zero)
+  GT -> 
+    let dvisor = Positive ds2
+        go dvend acc = case compare dvend dvisor of
+            LT -> (acc, dvend)
+            EQ -> (add one acc, zero)
+            GT -> go (subtract dvend dvisor) (add one acc)
+    in go (Positive ds1) zero
 
 -- Comparison
 compareDigits : Digits -> Digits -> Order
@@ -217,6 +230,12 @@ fstDiff : [Order] -> Order
 fstDiff ords = case dropWhile ((==) EQ) ords of
   []     -> EQ
   ord::_ -> ord
+
+-- Utilities
+isZero : BigInt -> Bool
+isZero i = case i of 
+  Zero -> True
+  _    -> False
 
 dropZeros : [Int] -> [Int]
 dropZeros = dropWhile ((==) 0)
