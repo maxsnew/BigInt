@@ -22,8 +22,12 @@ type Digits = [Digit]
 -- A decimal digit, invariant: 0-9
 type Digit  = Int
 
+-- Can fail if the int is not an integer
+fromInt : Int -> BigInt
+fromInt = fromString . show
+
 fromString : String -> BigInt
-fromString = either Native.Error.raise id . safeFromString
+fromString = either Native.Error.raise Basics.identity . safeFromString
 
 safeFromString : String -> Either String BigInt
 safeFromString =
@@ -102,7 +106,7 @@ add m n = case (m, n) of
 
 
 quotRem10 : Int -> (Int, Int)
-quotRem10 s = (s `div` 10, s `mod` 10)
+quotRem10 s = (s // 10, s % 10)
 
 -- | Addition of natural numbers
 addDigits : Digits -> Digits -> Digits
