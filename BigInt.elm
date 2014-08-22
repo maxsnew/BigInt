@@ -24,7 +24,30 @@ type Digit  = Int
 
 -- Can fail if the int is not an integer
 fromInt : Int -> BigInt
-fromInt = fromString . show
+fromInt i = if not (i >= minInt && i <= maxInt)
+            then Native.Error.raise (show i ++ " is not an exact integer")
+            else (fromString . show) i
+
+maxInt : Int
+maxInt = 9007199254740992
+minInt : Int
+minInt = -9007199254740992
+
+maxBInt : BigInt
+maxBInt = fromInt maxInt
+minBInt : BigInt
+minBInt = fromInt minInt
+
+toInt : BigInt -> Int
+toInt b = if (b `lt` minBInt || b `gt` maxBInt)
+          then Native.Error.raise (toString b ++ " is not small enough to be an exact int")
+          else case b of
+            Zero     -> 0
+            Positive ds -> sumDigits ds
+            Negative ds -> (Basics.negate . sumDigits) ds
+
+sumDigits : Digits -> Int
+sumDigits = List.sum . List.indexedMap (\i d -> 10 ^ i * d)
 
 fromString : String -> BigInt
 fromString = either Native.Error.raise Basics.identity . safeFromString
@@ -104,6 +127,11 @@ add m n = case (m, n) of
   (Positive pos, Negative neg) -> subtractDigits pos neg
   (Negative neg, Positive pos) -> subtractDigits pos neg
 
+inc : BigInt -> BigInt
+inc = add one
+
+dec : BigInt -> BigInt
+dec m = subtract m one
 
 quotRem10 : Int -> (Int, Int)
 quotRem10 s = (s // 10, s % 10)
@@ -159,18 +187,6 @@ subtractFromGreater minuend subtrahend =
 subtract : BigInt -> BigInt -> BigInt
 subtract m n = add m (negate n)
 
-compare : BigInt -> BigInt -> Order
-compare m n = case (m, n) of
-  (Zero, Zero) -> EQ
-  (Zero, Positive _) -> LT
-  (Zero, Negative _) -> GT
-  (Positive _, Zero) -> GT
-  (Negative _, Zero) -> LT
-  (Positive _, Negative _) -> GT
-  (Negative _, Positive _) -> LT
-  (Positive ds1, Positive ds2) -> compareDigits ds1 ds2
-  (Negative ds1, Negative ds2) -> compareDigits ds2 ds1
-
 -- Multiplication and Division
 multiply : BigInt -> BigInt -> BigInt
 multiply m n = case (m, n) of
@@ -225,10 +241,42 @@ divideDigits ds1 ds2 = case compareDigits ds1 ds2 of
     in go (Positive ds1) zero
 
 -- Comparison
+
+compare : BigInt -> BigInt -> Order
+compare m n = case (m, n) of
+  (Zero, Zero) -> EQ
+  (Zero, Positive _) -> LT
+  (Zero, Negative _) -> GT
+  (Positive _, Zero) -> GT
+  (Negative _, Zero) -> LT
+  (Positive _, Negative _) -> GT
+  (Negative _, Positive _) -> LT
+  (Positive ds1, Positive ds2) -> compareDigits ds1 ds2
+  (Negative ds1, Negative ds2) -> compareDigits ds2 ds1
+
 compareDigits : Digits -> Digits -> Order
 compareDigits ds1 ds2 = case Basics.compare (length ds1) (length ds2) of
   EQ  -> fstDiff . reverse <| zipWith Basics.compare ds1 ds2
   ord -> ord
+
+lt : BigInt -> BigInt -> Bool
+lt m n = LT == (compare m n)
+
+gt : BigInt -> BigInt -> Bool
+gt m n = GT == (compare m n)
+
+gte : BigInt -> BigInt -> Bool
+gte m n = LT /= (compare m n)
+
+max : BigInt -> BigInt -> BigInt
+max m n = case compare m n of
+  LT -> n
+  _  -> m
+
+min : BigInt -> BigInt -> BigInt
+min m n = case compare m n of
+  GT -> n
+  _  -> m
 
 fstDiff : [Order] -> Order
 fstDiff ords = case dropWhile ((==) EQ) ords of
