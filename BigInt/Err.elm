@@ -6,7 +6,7 @@ import List
 
 
 map : (a -> b) -> Either e a -> Either e b
-map f = Either.either Left (Right . f)
+map f = Either.either Left (Right << f)
 
 andThen : Either e a -> (a -> Either e b) -> Either e b
 andThen e k = Either.either Left k e
@@ -20,4 +20,4 @@ forEach xs k =
       consM ex exs = ex  `andThen` (\x -> 
                      exs `andThen` (\xs ->
                      Right (x :: xs)))
-  in foldr consM (Right []) . List.map k <| xs
+  in foldr consM (Right []) << List.map k <| xs

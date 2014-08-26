@@ -26,7 +26,7 @@ type Digit  = Int
 fromInt : Int -> BigInt
 fromInt i = if not (i >= minInt && i <= maxInt)
             then Native.Error.raise (show i ++ " is not an exact integer")
-            else (fromString . show) i
+            else (fromString << show) i
 
 maxInt : Int
 maxInt = 9007199254740992
@@ -44,13 +44,13 @@ toInt b = if (b `lt` minBInt || b `gt` maxBInt)
           else case b of
             Zero     -> 0
             Positive ds -> sumDigits ds
-            Negative ds -> (Basics.negate . sumDigits) ds
+            Negative ds -> (Basics.negate << sumDigits) ds
 
 sumDigits : Digits -> Int
-sumDigits = List.sum . List.indexedMap (\i d -> 10 ^ i * d)
+sumDigits = List.sum << List.indexedMap (\i d -> 10 ^ i * d)
 
 fromString : String -> BigInt
-fromString = either Native.Error.raise Basics.identity . safeFromString
+fromString = either Native.Error.raise Basics.identity << safeFromString
 
 safeFromString : String -> Either String BigInt
 safeFromString =
@@ -63,7 +63,7 @@ safeFromString =
       readDigit c = Dict.get c digits
       
       readDigits : (Bool, [Char]) -> Either String (Bool, [Int])
-      readDigits (b, cs) = Err.map ((,) b) . Err.forEach cs <| \c ->
+      readDigits (b, cs) = Err.map ((,) b) << Err.forEach cs <| \c ->
         case readDigit c of
           Nothing -> Left (String.cons c " is not a digit.")
           Just  d -> Right d
@@ -77,7 +77,7 @@ safeFromString =
            then Zero
            else ctor b (reverse shortened)
 
-  in Err.map interpret . (readDigits <=< getSign) . String.toList
+  in Err.map interpret << (readDigits <=< getSign) << String.toList
 
 digits : Dict Char Int
 digits = Dict.fromList [ ('0', 0)
@@ -93,11 +93,11 @@ digits = Dict.fromList [ ('0', 0)
 
 toString : BigInt -> String
 toString i = 
-  let digitString = String.join "" . map show . reverse
+  let digitString = String.join "" << map show << reverse
   in case i of
     Zero        -> "0"
     Positive ds -> digitString ds
-    Negative ds -> String.cons '-' . digitString <| ds
+    Negative ds -> String.cons '-' << digitString <| ds
 
 dropWhile : (a -> Bool) -> [a] -> [a]
 dropWhile p =
@@ -182,7 +182,7 @@ subtractFromGreater minuend subtrahend =
                                          then (newM + 10, 1)
                                          else (newM, 0)
                  in carryOut ms newCarry (newM' :: diffAcc)
-  in reverse . dropZeros <| go minuend subtrahend 0 []
+  in reverse << dropZeros <| go minuend subtrahend 0 []
 
 subtract : BigInt -> BigInt -> BigInt
 subtract m n = add m (negate n)
@@ -256,7 +256,7 @@ compare m n = case (m, n) of
 
 compareDigits : Digits -> Digits -> Order
 compareDigits ds1 ds2 = case Basics.compare (length ds1) (length ds2) of
-  EQ  -> fstDiff . reverse <| zipWith Basics.compare ds1 ds2
+  EQ  -> fstDiff << reverse <| zipWith Basics.compare ds1 ds2
   ord -> ord
 
 lt : BigInt -> BigInt -> Bool
