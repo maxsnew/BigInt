@@ -211,6 +211,9 @@ multDigits ds1 ds2 =
 one : BigInt
 one = fromString "1"
 
+two : BigInt
+two = fromString "2"
+
 -- Quotient and remainder
 quotRem : BigInt -> BigInt -> (BigInt, BigInt)
 quotRem m n = case (m, n) of
@@ -239,6 +242,32 @@ divideDigits ds1 ds2 = case compareDigits ds1 ds2 of
             EQ -> (add one acc, zero)
             GT -> go (subtract dvend dvisor) (add one acc)
     in go (Positive ds1) zero
+
+-- returns the floor of the sqroot and the difference between that number's square and the original argument
+-- uses a slow method (binary search starting at arg/2)
+flroot : BigInt -> (BigInt, BigInt)
+flroot m = case m of
+  Zero -> (zero, zero)
+  Negative _   -> Native.Error.raise "Can't take square root of a negative number"
+  Positive [1] -> (one, zero)
+  Positive _ -> 
+    --  invariants: lo is <= the sqroot, hi is > the sqroot
+    let rootRem root = m `subtract` (square root)
+        search lo hi =
+          if | inc lo == hi -> (lo, rootRem lo)
+             | otherwise -> 
+                 let mid = avg lo hi 
+                 in case compare (square mid) m of
+                   EQ -> (mid, zero)
+                   LT -> search mid hi
+                   GT -> search lo mid
+    in  search zero m
+
+square : BigInt -> BigInt
+square m = multiply m m
+
+avg : BigInt -> BigInt -> BigInt
+avg m n = fst <| quotRem (add m n) two
 
 -- Comparison
 compare : BigInt -> BigInt -> Order
