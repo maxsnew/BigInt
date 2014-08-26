@@ -1,2 +1,4 @@
 build/
 cache/
+test.js
+node_modules/

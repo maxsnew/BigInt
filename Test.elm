@@ -20,7 +20,12 @@ fromStringTests = []
 
 toStringTests = []
 
-additionTests = [I.fromString "101" `equals` (I.add (I.fromString "100") I.one)]
+additionTests = [ 
+    I.fromString "101" `equals` (I.add (I.fromString "100") I.one)
+  , I.fromString "101" `equals` (I.add I.one (I.fromString "100"))
+  , I.fromString "100" `equals` (I.add (I.fromString "99") I.one)
+  , I.fromString "100" `equals` (I.add (I.fromString "99") I.one)
+  ]
 
 subtractionTests = []
 

@@ -143,9 +143,10 @@ addDigits ds1 ds2 =
       go acc carry ds1 ds2 = case (ds1, ds2) of
         ([], [])             -> pushCarry carry acc
         ([], d::ds)          -> goWith acc (d + carry) ds
-        (d::ds, [])          -> goOne acc (carry + d) ds
+        (d::ds, [])          -> goWith acc (carry + d) ds
         (d1::ds1', d2::ds2') -> let (carry', d) = quotRem10 <| d1 + d2 + carry
                                 in go (d::acc) carry' ds1' ds2'
+
       goWith acc c' ds = let (carry, d) = quotRem10 <| c'
                          in goOne (d::acc) carry ds
 
