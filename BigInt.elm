@@ -241,7 +241,6 @@ divideDigits ds1 ds2 = case compareDigits ds1 ds2 of
     in go (Positive ds1) zero
 
 -- Comparison
-
 compare : BigInt -> BigInt -> Order
 compare m n = case (m, n) of
   (Zero, Zero) -> EQ
@@ -288,6 +287,14 @@ isZero : BigInt -> Bool
 isZero i = case i of 
   Zero -> True
   _    -> False
+
+range : BigInt -> BigInt -> [BigInt]
+range lo hi = case compare lo hi of
+  GT -> []
+  _  -> let loop cur left acc = case left of
+              Zero       -> reverse acc
+              Positive _ -> loop (inc cur) (dec left) (cur :: acc)
+        in  loop lo ((hi `add` one) `subtract` lo) []
 
 dropZeros : [Int] -> [Int]
 dropZeros = dropWhile ((==) 0)
