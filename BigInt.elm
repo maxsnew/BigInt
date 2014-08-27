@@ -237,6 +237,12 @@ quotRem m n = case (m, n) of
                         then (negate q, r)
                         else (subtract (negate q) one, subtract n r)
 
+div : BigInt -> BigInt -> BigInt
+div x y = fst (quotRem x y)
+
+mod : BigInt -> BigInt -> BigInt
+mod x y = snd (quotRem x y)
+
 negatively (m, n) = (negate m, n)
 
 -- Euclidean Division, produces quotient and remainder, as in
@@ -256,26 +262,25 @@ divideDigits ds1 ds2 = case compareDigits ds1 ds2 of
                  GT -> go (fuel - 1) (subtract dvend dvisor) (add one acc)
     in trampoline (go startFuel (Positive ds1) zero)
 
--- returns the floor of the sqroot and the difference between that number's square and the original argument
--- uses a slow method (binary search starting at arg/2)
-flroot : BigInt -> (BigInt, BigInt)
+half m = fst (quotRem m two)
+
+-- returns the floor of the sqroot
+-- uses Newton's Method
+flroot : BigInt -> BigInt
 flroot m = case m of
-  Zero -> (zero, zero)
+  Zero         -> zero
   Negative _   -> Native.Error.raise "Can't take square root of a negative number"
-  Positive [1] -> (one, zero)
-  Positive _ -> 
-    --  invariants: lo is <= the sqroot, hi is > the sqroot
-    let rootRem root = m `subtract` (square root)
-        search fuel lo hi =
-          if | fuel <= 0 -> Continue (\_ -> search startFuel lo hi)
-             | inc lo == hi -> Done (lo, rootRem lo)
-             | otherwise -> 
-                 let mid = avg lo hi 
-                 in case compare (square mid) m of
-                   EQ -> Done (mid, zero)
-                   LT -> search (fuel - 1) mid hi
-                   GT -> search (fuel - 1) lo mid
-    in  trampoline (search startFuel zero m)
+  Positive [1] -> one
+  Positive _ ->
+    -- Newton's method using integer division
+    -- x_(k+1) = 1/2 (x_k + m / x_k)
+    let newton fuel prevGuess curGuess =
+          if | fuel < 0                -> Continue (\_ -> newton startFuel prevGuess curGuess)
+             | curGuess `lt` prevGuess ->
+                 let nextGuess = half (add curGuess (div m curGuess))
+                 in newton fuel curGuess nextGuess
+             | otherwise               -> Done curGuess
+    in  trampoline (newton startFuel m (half (inc m))) -- (m+1)//2 is always the second guess, saving a division
 
 square : BigInt -> BigInt
 square m = multiply m m
@@ -330,6 +335,12 @@ isZero : BigInt -> Bool
 isZero i = case i of 
   Zero -> True
   _    -> False
+
+abs : BigInt -> BigInt
+abs b = case b of
+  Zero        -> Zero
+  Positive _  -> b
+  Negative ds -> Positive ds
 
 range : BigInt -> BigInt -> [BigInt]
 range lo hi = case compare lo hi of
