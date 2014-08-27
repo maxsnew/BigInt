@@ -204,20 +204,32 @@ multiply : BigInt -> BigInt -> BigInt
 multiply m n = case (m, n) of
   (Zero, _) -> Zero
   (_, Zero) -> Zero
-  (Positive ds1, Positive ds2) -> multDigits ds1 ds2
-  (Positive ds1, Negative ds2) -> negate (multDigits ds1 ds2)
-  (Negative ds1, Positive ds2) -> negate (multDigits ds1 ds2)
-  (Negative ds1, Negative ds2) -> multDigits ds1 ds2
+  (Positive ds1, Positive ds2) -> Positive (multDigits ds1 ds2)
+  (Positive ds1, Negative ds2) -> Negative (multDigits ds1 ds2)
+  (Negative ds1, Positive ds2) -> Negative (multDigits ds1 ds2)
+  (Negative ds1, Negative ds2) -> Positive (multDigits ds1 ds2)
 
-multDigits : Digits -> Digits -> BigInt
-multDigits ds1 ds2 = 
+-- | Should not be exposed!!! Exposes implementation details!!!
+leftShift : Digits -> Int -> Digits
+leftShift ds n = repeat n 0 ++ ds
+
+multDigits : Digits -> Digits -> Digits
+multDigits ds1 ds2 =
   let (big, less) = case compareDigits ds1 ds2 of
-        LT -> (Positive ds2, Positive ds1)
-        _  -> (Positive ds1, Positive ds2)
-      go less acc = case less of
-          Zero       -> Done acc
-          Positive _ -> Continue (\_ -> go (subtract less one) (add big acc))
-  in trampoline (go less Zero)
+        LT -> (ds2, ds1)
+        _  -> (ds1, ds2)
+      -- multiply a single digit by the bigger number
+      go fuel digit ds carry acc =
+        if | fuel < 0  -> Continue (\_ -> go startFuel digit ds carry acc)
+           | otherwise ->
+             case (ds, carry) of
+               ([],     0) -> Done (reverse acc)
+               ([],     _) -> Done (reverse (carry :: acc))
+               (d::ds', _) ->
+                 let (newD, newCarry) = quotRem10 (d * digit)
+                 in go (fuel - 1) digit ds' newCarry (newD :: acc)
+      multDigit d = trampoline (go startFuel d big 0 [])
+  in foldl1 addDigits << List.indexedMap (\i d -> (multDigit d) `leftShift` i) <| less
 
 one : BigInt
 one = fromString "1"
