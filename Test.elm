@@ -29,7 +29,10 @@ additionTests = [
 
 subtractionTests = []
 
-multiplicationTests = []
+multiplicationTests = [
+    (I.one) `equals` ((I.fromString "3") `I.multiply` (I.fromString "1"))
+  , I.fromString "6" `equals` (I.fromString "3" `I.multiply` I.fromString "2")
+  ]
 
 divisionTests = [
     (I.fromString "3", I.one) `equals` (I.quotRem (I.fromString "10") (I.fromString "3"))
