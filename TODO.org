@@ -1,10 +1,20 @@
 * TODO
 ** Simple Representation (Digits)
-   - [ ] Addition of positive numbers
-   - [ ] subtraction of positive numbers
-   - [ ] multiplication
-   - [ ] integral division w/ remainder
-   - [ ] root operations (probably just search)
+   - [X] Addition of positive numbers
+   - [X] subtraction of positive numbers
+   - [-] multiplication
+     - [X] By repeated addition
+     - [ ] Schoolboy
+     - [ ] Karatsuba?
+   - [-] integral division w/ remainder
+     - [X] By repeated subtraction
+     - [ ] Long Division
+     - [ ] Faster algorithms?
+   - [-] Root operations
+     - [X] Square Root
+       - [X] Binary Search
+       - [X] Newton's Method
+     - [ ] General nth root
    - [ ] exponentation
 ** Design (later)
    - [ ] Consider other representations
