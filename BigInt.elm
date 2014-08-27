@@ -7,6 +7,7 @@ import Either (Either(..), either)
 import List
 import Native.Error
 import String
+import Trampoline (Trampoline(Continue, Done), trampoline)
 
 import BigInt.Err ((<=<))
 import BigInt.Err as Err
@@ -22,6 +23,8 @@ type Digits = [Digit]
 -- A decimal digit, invariant: 0-9
 type Digit  = Int
 
+
+startFuel = 2
 -- Can fail if the int is not an integer
 fromInt : Int -> BigInt
 fromInt i = if not (i >= minInt && i <= maxInt)
@@ -139,22 +142,26 @@ quotRem10 s = (s // 10, s % 10)
 -- | Addition of natural numbers
 addDigits : Digits -> Digits -> Digits
 addDigits ds1 ds2 = 
-  let pushCarry carry acc = if carry == 0 then acc else carry :: acc
-      go acc carry ds1 ds2 = case (ds1, ds2) of
-        ([], [])             -> pushCarry carry acc
-        ([], d::ds)          -> goWith acc (d + carry) ds
-        (d::ds, [])          -> goWith acc (carry + d) ds
-        (d1::ds1', d2::ds2') -> let (carry', d) = quotRem10 <| d1 + d2 + carry
-                                in go (d::acc) carry' ds1' ds2'
+  let pushCarry carry acc = Done <| if carry == 0 then acc else carry :: acc
+      go fuel acc carry ds1 ds2 = 
+        if | fuel < 0  -> Continue (\_ -> go startFuel acc carry ds1 ds2)
+           | otherwise -> case (ds1, ds2) of
+               ([], [])             -> pushCarry carry acc
+               ([], d::ds)          -> goWith acc (d + carry) ds
+               (d::ds, [])          -> goWith acc (carry + d) ds
+               (d1::ds1', d2::ds2') -> let (carry', d) = quotRem10 <| d1 + d2 + carry
+                                       in go (fuel - 1) (d::acc) carry' ds1' ds2'
 
       goWith acc c' ds = let (carry, d) = quotRem10 <| c'
-                         in goOne (d::acc) carry ds
+                         in goOne 0 (d::acc) carry ds
 
-      goOne acc carry ds = case ds of
-        [] -> pushCarry carry acc
-        (d :: ds') -> let (carry', d') = quotRem10 <| d + carry
-                      in goOne (d'::acc) carry' ds'
-  in reverse <| go [] 0 ds1 ds2
+      goOne fuel acc carry ds = 
+        if | fuel < 0  -> goOne startFuel acc carry ds
+           | otherwise -> case ds of
+               [] -> pushCarry carry acc
+               (d :: ds') -> let (carry', d') = quotRem10 <| d + carry
+                             in goOne (fuel - 1) (d'::acc) carry' ds'
+  in reverse << trampoline <| go startFuel [] 0 ds1 ds2
 
 -- | TODO
 subtractDigits : Digits -> Digits -> BigInt
@@ -167,23 +174,27 @@ subtractDigits pos neg =
 -- First argument is assumed to be larger
 subtractFromGreater : Digits -> Digits -> Digits
 subtractFromGreater minuend subtrahend =
-  let go minuend subtrahend carry diffAcc = case (minuend, subtrahend) of
-        ([], _) -> diffAcc
-        (_, []) -> carryOut minuend carry diffAcc
-        (m::ms, s::ss) ->
-        let newM = m - carry
-            (newM', newCarry) = if newM < s
-                                then (newM + 10, 1)
-                                else (newM, 0)
-        in go ms ss newCarry (newM' - s :: diffAcc)
-      carryOut minuend carry diffAcc = case minuend of
-        []   -> diffAcc
-        m::ms -> let newM = m - carry
-                     (newM', newCarry) = if newM < 0
+  let go fuel minuend subtrahend carry diffAcc = 
+        if | fuel < 0  -> Continue (\_ -> go startFuel minuend subtrahend carry diffAcc)
+           | otherwise -> case (minuend, subtrahend) of
+               ([], _) -> Done diffAcc
+               (_, []) -> carryOut fuel minuend carry diffAcc
+               (m::ms, s::ss) ->
+                 let newM = m - carry
+                     (newM', newCarry) = if newM < s
                                          then (newM + 10, 1)
                                          else (newM, 0)
-                 in carryOut ms newCarry (newM' :: diffAcc)
-  in reverse << dropZeros <| go minuend subtrahend 0 []
+                 in go (fuel - 1) ms ss newCarry (newM' - s :: diffAcc)
+      carryOut fuel minuend carry diffAcc = 
+          if | fuel < 0  -> Continue (\_ -> carryOut startFuel minuend carry diffAcc)
+             | otherwise -> case minuend of
+                 []    -> Done diffAcc
+                 m::ms -> let newM = m - carry
+                              (newM', newCarry) = if newM < 0
+                                                  then (newM + 10, 1)
+                                                  else (newM, 0)
+                          in carryOut (fuel - 1) ms newCarry (newM' :: diffAcc)
+  in reverse << dropZeros << trampoline <| go startFuel minuend subtrahend 0 []
 
 subtract : BigInt -> BigInt -> BigInt
 subtract m n = add m (negate n)
@@ -204,10 +215,9 @@ multDigits ds1 ds2 =
         LT -> (Positive ds2, Positive ds1)
         _  -> (Positive ds1, Positive ds2)
       go less acc = case less of
-          Zero       -> acc
-          Positive _ -> go (subtract less one) (add big acc)
-  in go less Zero
-       
+          Zero       -> Done acc
+          Positive _ -> Continue (\_ -> go (subtract less one) (add big acc))
+  in trampoline (go less Zero)
 
 one : BigInt
 one = fromString "1"
@@ -238,11 +248,13 @@ divideDigits ds1 ds2 = case compareDigits ds1 ds2 of
   EQ -> (one, zero)
   GT -> 
     let dvisor = Positive ds2
-        go dvend acc = case compare dvend dvisor of
-            LT -> (acc, dvend)
-            EQ -> (add one acc, zero)
-            GT -> go (subtract dvend dvisor) (add one acc)
-    in go (Positive ds1) zero
+        go fuel dvend acc = 
+          if | fuel < 0  -> Continue (\_ -> go startFuel dvend acc)
+             | otherwise -> case compare dvend dvisor of
+                 LT -> Done (acc, dvend)
+                 EQ -> Done (add one acc, zero)
+                 GT -> go (fuel - 1) (subtract dvend dvisor) (add one acc)
+    in trampoline (go startFuel (Positive ds1) zero)
 
 -- returns the floor of the sqroot and the difference between that number's square and the original argument
 -- uses a slow method (binary search starting at arg/2)
@@ -254,15 +266,16 @@ flroot m = case m of
   Positive _ -> 
     --  invariants: lo is <= the sqroot, hi is > the sqroot
     let rootRem root = m `subtract` (square root)
-        search lo hi =
-          if | inc lo == hi -> (lo, rootRem lo)
+        search fuel lo hi =
+          if | fuel <= 0 -> Continue (\_ -> search startFuel lo hi)
+             | inc lo == hi -> Done (lo, rootRem lo)
              | otherwise -> 
                  let mid = avg lo hi 
                  in case compare (square mid) m of
-                   EQ -> (mid, zero)
-                   LT -> search mid hi
-                   GT -> search lo mid
-    in  search zero m
+                   EQ -> Done (mid, zero)
+                   LT -> search (fuel - 1) mid hi
+                   GT -> search (fuel - 1) lo mid
+    in  trampoline (search startFuel zero m)
 
 square : BigInt -> BigInt
 square m = multiply m m
