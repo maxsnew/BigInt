@@ -36,7 +36,8 @@ multiplicationTests = [
   ]
 
 divisionTests = [
-    (I.fromString "3", I.one) `equals` (I.quotRem (I.fromString "10") (I.fromString "3"))
+    (I.fromString "3",    I.one) `equals` (I.quotRem (I.fromString "10") (I.fromString "3"))
+  , (I.fromString "100", I.zero) `equals` (I.quotRem (I.fromString "600") (I.fromString "6"))
   , (I.fromString "127", I.zero) `equals` (I.quotRem (I.fromString "8890") (I.fromString "70"))
   , (I.fromString "70", I.zero) `equals` (I.quotRem (I.fromString "8890") (I.fromString "127"))
   , (I.fromString "-4546", I.fromString "20") `equals` (I.quotRem (I.fromString "-4286858") (I.fromString "943"))
