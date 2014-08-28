@@ -228,7 +228,7 @@ multDigits ds1 ds2 =
                ([],     0) -> Done (reverse acc)
                ([],     _) -> Done (reverse (carry :: acc))
                (d::ds', _) ->
-                 let (newD, newCarry) = quotRem10 (d * digit)
+                 let (newCarry, newD) = quotRem10 (d * digit + carry)
                  in go (fuel - 1) digit ds' newCarry (newD :: acc)
       multDigit d = trampoline (go startFuel d big 0 [])
   in foldl1 addDigits << List.indexedMap (\i d -> (multDigit d) `leftShift` i) <| less

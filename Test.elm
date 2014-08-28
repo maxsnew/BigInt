@@ -30,8 +30,9 @@ additionTests = [
 subtractionTests = []
 
 multiplicationTests = [
-    (I.one) `equals` ((I.fromString "3") `I.multiply` (I.fromString "1"))
+    (I.fromString "3") `equals` ((I.fromString "3") `I.multiply` (I.fromString "1"))
   , I.fromString "6" `equals` (I.fromString "3" `I.multiply` I.fromString "2")
+  , I.fromString "-4286878" `equals` (I.fromString "943" `I.multiply` I.fromString "-4546")
   ]
 
 divisionTests = [
