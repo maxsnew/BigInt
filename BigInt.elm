@@ -268,6 +268,9 @@ divideDigits ds1 ds2 = case compareDigits ds1 ds2 of
   EQ -> (one, zero)
   GT ->
     let dvisor        = ds2
+        push d ds = case d of
+          0 -> pushZero ds
+          _ -> d :: ds
         pushZero ds = case ds of
           [] -> []
           _  -> 0::ds
@@ -278,7 +281,7 @@ divideDigits ds1 ds2 = case compareDigits ds1 ds2 of
                  case back of
                    []         -> Done (acc, front)
                    (d::back') -> 
-                       let front' = d :: front
+                       let front' = push d front
                        in case compareDigits front' dvisor of
                             LT -> go (fuel - 1) front' back' (pushZero acc)
                             GT ->
