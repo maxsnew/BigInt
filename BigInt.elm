@@ -28,20 +28,20 @@ startFuel : Fuel
 startFuel = 2
 
 -- Can fail if the int is not an integer
-fromInt : Int -> BigInt
-fromInt i = if not (i >= minInt && i <= maxInt)
-            then Native.Error.raise (show i ++ " is not an exact integer")
-            else (fromString << show) i
+-- fromInt : Int -> BigInt
+-- fromInt i = if not (i >= minInt && i <= maxInt)
+--             then Native.Error.raise (show i ++ " is not an exact integer")
+--             else (fromString << show) i
 
 maxInt : Int
-maxInt = 9007199254740992
+maxInt = toInt maxBInt
 minInt : Int
-minInt = -9007199254740992
+minInt = toInt minBInt
 
 maxBInt : BigInt
-maxBInt = fromInt maxInt
+maxBInt = fromString "9007199254740992"
 minBInt : BigInt
-minBInt = fromInt minInt
+minBInt = negate maxBInt
 
 toInt : BigInt -> Int
 toInt b = if (b `lt` minBInt || b `gt` maxBInt)
@@ -49,7 +49,7 @@ toInt b = if (b `lt` minBInt || b `gt` maxBInt)
           else case b of
             Zero     -> 0
             Positive ds -> sumDigits ds
-            Negative ds -> (Basics.negate << sumDigits) ds
+            Negative ds -> ((\x -> -x) << sumDigits) ds
 
 sumDigits : Digits -> Int
 sumDigits = List.sum << List.indexedMap (\i d -> 10 ^ i * d)
@@ -259,9 +259,6 @@ mod x y = snd (quotRem x y)
 
 negatively (m, n) = (negate m, n)
 
-splitAt : Int -> [a] -> ([a], [a])
-splitAt n xs = (take n xs, drop n xs)
-
 -- Euclidean Division, produces quotient and remainder, as in
 --    let (q, r) = longDivide a b
 --    a = bq + r
@@ -348,7 +345,7 @@ compare m n = case (m, n) of
   (Negative ds1, Negative ds2) -> compareDigits ds2 ds1
 
 compareDigits : Digits -> Digits -> Order
-compareDigits ds1 ds2 = case Basics.compare (length ds1) (length ds2) of
+compareDigits ds1 ds2 = case Basics.compare (List.length ds1) (List.length ds2) of
   EQ  -> fstDiff << reverse <| zipWith Basics.compare ds1 ds2
   ord -> ord
 
@@ -398,3 +395,21 @@ range lo hi = case compare lo hi of
 
 dropZeros : [Int] -> [Int]
 dropZeros = dropWhile ((==) 0)
+
+length : [a] -> BigInt
+length = List.foldl (\_ i -> inc i) zero
+
+splitAt : BigInt -> [a] -> ([a], [a])
+splitAt count xs =
+  let go fuel count front back =
+        if | fuel < 0  -> Continue (\_ -> go startFuel count front back)
+           | otherwise -> case compare count zero of
+               LT -> Native.Error.raise "bug: permsE: splitAt: negative index!"
+               EQ -> Done (reverse front, back)
+               GT -> case back of
+                 []    -> Done (reverse front, [])
+                 x::xs -> go (fuel - 1) (dec count) (x::front) xs
+  in trampoline (go startFuel count [] xs)
+
+drop : BigInt -> [a] -> [a]
+drop i = fst << splitAt i
