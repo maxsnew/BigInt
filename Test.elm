@@ -2,8 +2,10 @@ module Main where
 
 import BigInt as I
 
+import ElmTest.Assertion (assertEqual)
 import ElmTest.Runner.Console (runDisplay)
-import ElmTest.Test (..)
+import ElmTest.Test (suite, test)
+import String
 
 tests = suite "BigInt tests" [
           suite "From String tests" fromStringTests
@@ -20,28 +22,41 @@ fromStringTests = []
 
 toStringTests = []
 
-additionTests = [ 
-    I.fromString "101" `equals` (I.add (I.fromString "100") I.one)
-  , I.fromString "101" `equals` (I.add I.one (I.fromString "100"))
-  , I.fromString "100" `equals` (I.add (I.fromString "99") I.one)
-  , I.fromString "100" `equals` (I.add (I.fromString "99") I.one)
+opTest opName op arg1 arg2 ans =
+  let name = String.concat [arg1, " ", opName, " ", arg2, " = ", ans]
+  in test name (assertEqual (I.fromString ans)
+                            (I.fromString arg1 `op` I.fromString arg2))
+
+addTest = opTest "+" I.add
+
+additionTests = [
+    addTest "100" "1" "101"
+  , addTest "1" "100" "101"
+  , addTest "99" "1" "100"
+  , addTest "1" "99" "100"
   ]
 
 subtractionTests = []
 
+multTest = opTest "*" I.multiply
 multiplicationTests = [
-    (I.fromString "3") `equals` ((I.fromString "3") `I.multiply` (I.fromString "1"))
-  , I.fromString "6" `equals` (I.fromString "3" `I.multiply` I.fromString "2")
-  , I.fromString "-4286878" `equals` (I.fromString "943" `I.multiply` I.fromString "-4546")
+    multTest "3" "1" "3"
+  , multTest "3" "2" "6"
+  , multTest "943" "-4546" "-4286878"
   ]
 
+divTest num denom quot rem =
+  let name = num ++ " ÷ " ++ denom ++ " = " ++ quot ++ " rem " ++ rem
+  in test name  (assertEqual (I.fromString quot, I.fromString rem) 
+                             (I.quotRem (I.fromString num) (I.fromString denom)))
+
 divisionTests = [
-    (I.fromString "3",    I.one) `equals` (I.quotRem (I.fromString "10") (I.fromString "3"))
-  , (I.fromString "100", I.zero) `equals` (I.quotRem (I.fromString "600") (I.fromString "6"))
-  , (I.fromString "127", I.zero) `equals` (I.quotRem (I.fromString "8890") (I.fromString "70"))
-  , (I.fromString "70", I.zero) `equals` (I.quotRem (I.fromString "8890") (I.fromString "127"))
-  , (I.fromString "-4546", I.fromString "20") `equals` (I.quotRem (I.fromString "-4286858") (I.fromString "943"))
-  , (I.fromString "943", I.fromString "20") `equals` (I.quotRem (I.fromString "-4286858") (I.fromString "-4546"))
+    divTest "10" "3" "3" "1" 
+  , divTest "600" "6" "100" "0"
+  , divTest "8890" "70" "127" "0"
+  , divTest "8890" "127" "70" "0"
+  , divTest "-4286858" "943" "-4546" "20"
+  , divTest "-4286858" "-4546" "943" "20"
   ]
 
 comparisonTests = []
