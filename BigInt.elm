@@ -422,3 +422,10 @@ take i = fst << splitAt i
 drop : BigInt -> [a] -> [a]
 drop i = snd << splitAt i
 
+remove : BigInt -> [a] -> [a]
+remove n xs =
+  let (front, back) = splitAt n xs
+      rest = case back of
+        []    -> []
+        _::xs -> xs
+  in front ++ rest
