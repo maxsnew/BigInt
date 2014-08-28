@@ -322,7 +322,7 @@ flroot m = case m of
              | curGuess `lt` prevGuess ->
                  let nextGuess = half (add curGuess (div m curGuess))
                  in newton fuel curGuess nextGuess
-             | otherwise               -> Done curGuess
+             | otherwise               -> Done prevGuess
     in  trampoline (newton startFuel m (half (inc m))) -- (m+1)//2 is always the second guess, saving a division
 
 square : BigInt -> BigInt
@@ -388,10 +388,12 @@ abs b = case b of
 range : BigInt -> BigInt -> [BigInt]
 range lo hi = case compare lo hi of
   GT -> []
-  _  -> let loop cur left acc = case left of
-              Zero       -> reverse acc
-              Positive _ -> loop (inc cur) (dec left) (cur :: acc)
-        in  loop lo ((hi `add` one) `subtract` lo) []
+  _  -> let loop fuel cur left acc =
+              if | fuel < 0  -> Continue (\_ -> loop startFuel cur left acc)
+                 | otherwise -> case left of
+                     Zero       -> Done (reverse acc)
+                     Positive _ -> loop (fuel - 1) (inc cur) (dec left) (cur :: acc)
+        in trampoline (loop startFuel lo ((hi `add` one) `subtract` lo) [])
 
 dropZeros : [Int] -> [Int]
 dropZeros = dropWhile ((==) 0)
@@ -411,5 +413,9 @@ splitAt count xs =
                  x::xs -> go (fuel - 1) (dec count) (x::front) xs
   in trampoline (go startFuel count [] xs)
 
+take : BigInt -> [a] -> [a]
+take i = fst << splitAt i
+
 drop : BigInt -> [a] -> [a]
-drop i = fst << splitAt i
+drop i = snd << splitAt i
+
