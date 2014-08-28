@@ -259,7 +259,6 @@ mod x y = snd (quotRem x y)
 
 negatively (m, n) = (negate m, n)
 
-
 splitAt : Int -> [a] -> ([a], [a])
 splitAt n xs = (take n xs, drop n xs)
 
@@ -272,51 +271,30 @@ divideDigits ds1 ds2 = case compareDigits ds1 ds2 of
   EQ -> (one, zero)
   GT ->
     let dvisor        = ds2
-        go : Fuel -> Digits -> Digits -> Digits -> Trampoline (BigInt, BigInt)
+        pushZero ds = case ds of
+          [] -> []
+          _  -> 0::ds
+        go : Fuel -> Digits -> Digits -> Digits -> Trampoline (Digits, Digits)
         go fuel front back acc =
           if | fuel < 0  -> Continue (\_ -> go startFuel front back acc)
              | otherwise ->
-                 case compareDigits front dvisor of
-                   GT ->
-                     let (digit, rem) = div1Digit front dvisor
-                     in  go (fuel - 1) [] back (digit :: acc)
-                   EQ -> go (fuel - 1) [] back (1     :: acc)
-                   LT ->
-                     case back of
-                       []         -> Done (Positive (reverse << dropZeros <| acc), Positive front)
-                       (d::back') -> go (fuel - 1) (front ++ [d]) back' (0 :: acc)
+                 case back of
+                   []         -> Done (acc, front)
+                   (d::back') -> 
+                       let front' = d :: front
+                       in case compareDigits front' dvisor of
+                            LT -> go (fuel - 1) front' back' (pushZero acc)
+                            GT ->
+                                let (digit, rem) = div1Digit front' dvisor
+                                in  go (fuel - 1) rem back' (digit :: acc)
+                            EQ -> go (fuel - 1)     [] back' (1 :: acc)
 
-        -- search : Digits -> Digits -> (Digits, Digits)
-        -- search revFront back =
-        --   case back of
-        --     []         -> (revFront, back)
-        --     (d::back') ->
-        --       if | (Positive revFront) `gte` dvisor -> (revFront, back)
-        --          | otherwise                               ->
-        --              let revFront' = d :: revFront
-        --              in  search revFront' back'
-
-        -- findPrefix : Digits -> (Digits, Digits)
-        -- findPrefix revDs =
-        --   let ds = reverse revDs
-        --   in case compare (Positive ds) dvisor of
-        --        LT -> Nothing
-        --        EQ -> Just (revDs, [])
-        --        GT -> 
-        --          let (front, back) = splitAt dvisorLen ds
-        --          in search (reverse front) back
-                   
-        -- go : Fuel -> Digits -> Digits -> Trampoline (BigInt, BigInt)
-        -- go fuel front back acc =
-        --   if | fuel < 0        -> Continue (\_ -> go startFuel dvendDs acc)
-        --      | otherwise       ->
-        --        case findPrefix dvendDs of
-        --          Nothing -> Done (Positive (reverse (dvendDs ++ acc)), zero)
-        --          Just (front, back) ->
-        --            let (digit, rem) = div1Digit (reverse front) dvisor
-        --            in go (fuel - 1) (reverse rem ++ back) (digit :: acc)
-
-    in trampoline (go startFuel [] (reverse ds1) [])
+        (quotDs, remDs) = trampoline (go startFuel [] (reverse ds1) [])
+        quot = Positive quotDs
+        rem = case reverse << dropZeros << reverse <| remDs of
+          [] -> Zero
+          _  -> Positive remDs
+    in (quot, rem)
 
 -- arguments should both be positive
 div1Digit : Digits -> Digits -> (Digit, Digits)
@@ -326,20 +304,8 @@ div1Digit dvend dvisor =
         in case compareDigits prod dvend of
           LT -> go (cur+1)
           EQ -> (cur, [])
-          GT -> (cur - 1, subtractFromGreater prod dvend)
+          GT -> (cur - 1, subtractFromGreater dvend ([cur - 1] `multDigits` dvisor))
   in  go 1
-
--- slow division method, use as subroutine for long division
--- slowDivide : Digits -> Digits -> (BigInt, BigInt)
--- slowDivide dvend dvisor =
---   let dvisor = Positive ds2
---       go fuel dvend acc = 
---         if | fuel < 0  -> Continue (\_ -> go startFuel dvend acc)
---            | otherwise -> case compare dvend dvisor of
---                LT -> Done (acc, dvend)
---                EQ -> Done (add one acc, zero)
---                GT -> go (fuel - 1) (subtract dvend dvisor) (add one acc)
---   in trampoline (go startFuel (Positive ds1) zero)
 
 half : BigInt -> BigInt
 half m = m `div` two
