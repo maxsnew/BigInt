@@ -1,11 +1,15 @@
-module Main where
+module Test (tests) where
 
 import BigInt as I
 
+import Debug
 import ElmTest.Assertion (assertEqual)
-import ElmTest.Runner.Console (runDisplay)
 import ElmTest.Test (suite, test)
 import String
+
+unsafeFromString s = case I.fromString s of
+                       Err e -> Debug.crash "Test failure in fromString"
+                       Ok  n -> n
 
 tests = suite "BigInt tests" [
           suite "From String tests" fromStringTests
@@ -24,8 +28,8 @@ toStringTests = []
 
 opTest opName op arg1 arg2 ans =
   let name = String.concat [arg1, " ", opName, " ", arg2, " = ", ans]
-  in test name (assertEqual (I.fromString ans)
-                            (I.fromString arg1 `op` I.fromString arg2))
+  in test name (assertEqual (unsafeFromString ans)
+                            (unsafeFromString arg1 `op` unsafeFromString arg2))
 
 addTest = opTest "+" I.add
 
@@ -47,8 +51,8 @@ multiplicationTests = [
 
 divTest num denom quot rem =
   let name = num ++ " ÷ " ++ denom ++ " = " ++ quot ++ " rem " ++ rem
-  in test name  (assertEqual (I.fromString quot, I.fromString rem) 
-                             (I.quotRem (I.fromString num) (I.fromString denom)))
+  in test name  (assertEqual (unsafeFromString quot, unsafeFromString rem) 
+                             (I.quotRem (unsafeFromString num) (unsafeFromString denom)))
 
 divisionTests = [
     divTest "10" "3" "3" "1" 
@@ -62,5 +66,3 @@ divisionTests = [
 comparisonTests = []
 
 squareRootTests = []
-
-console = runDisplay tests
