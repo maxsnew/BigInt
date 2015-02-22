@@ -4,11 +4,11 @@
    - [X] subtraction of positive numbers
    - [-] multiplication
      - [X] By repeated addition
-     - [ ] Schoolboy
+     - [X] Schoolboy
      - [ ] Karatsuba?
    - [-] integral division w/ remainder
      - [X] By repeated subtraction
-     - [ ] Long Division
+     - [X] Long Division
      - [ ] Faster algorithms?
    - [-] Root operations
      - [X] Square Root
