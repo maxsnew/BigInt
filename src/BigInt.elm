@@ -1,4 +1,7 @@
-module BigInt where
+module BigInt (BigInt, fromString, show, negate, add, subtract,
+    multiply, quotRem, div, mod, sqrt, compare, lt, gt, gte, max, min,
+    isZero, abs, range)
+    where
 
 import Basics
 import Debug
@@ -23,9 +26,9 @@ type alias Digits = List Digit
 -- A BigInt digit, invariant: d : Digit ==> (0 <= d <= base-1)
 type alias Digit  = Int
 
--- Highest power of 10 such that base ^ 2 < maxInt, needed for multiply
+-- todo: replace with 10^7: Highest power of 10 such that base ^ 2 < maxInt, needed for multiply
 -- Power of 10 so it can be quickly changed to base 10
-base = 10 ^ 7
+base = 10
 
 type alias Fuel = Int
 startFuel : Fuel
@@ -38,31 +41,34 @@ startFuel = 100
 --             else (fromString << show) i
 
 maxInt : Int
-maxInt = toInt maxBInt
+maxInt = unsafeToInt maxBInt
 minInt : Int
-minInt = toInt minBInt
+minInt = unsafeToInt minBInt
 
 maxBInt : BigInt
-maxBInt = fromString "9007199254740992"
+maxBInt = unsafeFromString "9007199254740992"
 minBInt : BigInt
 minBInt = negate maxBInt
 
-toInt : BigInt -> Int
+unsafeToInt : BigInt -> Int
+unsafeToInt b = case b of
+  Zero     -> 0
+  Positive ds -> sumDigits ds
+  Negative ds -> ((\x -> -x) << sumDigits) ds
+
+toInt : BigInt -> Maybe Int
 toInt b = if (b `lt` minBInt || b `gt` maxBInt)
-          then Debug.crash (toString b ++ " is not small enough to be an exact int")
-          else case b of
-            Zero     -> 0
-            Positive ds -> sumDigits ds
-            Negative ds -> ((\x -> -x) << sumDigits) ds
+          then Nothing
+          else Just (unsafeToInt b) 
 
 sumDigits : Digits -> Int
-sumDigits = List.sum << List.indexedMap (\i d -> 10 ^ i * d)
+sumDigits = List.sum << List.indexedMap (\i d -> base ^ i * d)
 
-fromString : String -> BigInt
-fromString = either Debug.crash Basics.identity << safeFromString
+unsafeFromString : String -> BigInt
+unsafeFromString = either Debug.crash Basics.identity << fromString
 
-safeFromString : String -> Result String BigInt
-safeFromString =
+fromString : String -> Result String BigInt
+fromString =
   let getSign : List Char -> Result String (Bool, List Char) -- ^ True for Positive
       getSign cs = case cs of
         [] -> Err "Empty String is invalid Integer"
@@ -143,8 +149,9 @@ inc = add one
 dec : BigInt -> BigInt
 dec m = subtract m one
 
-quotRem10 : Int -> (Int, Int)
-quotRem10 s = (s // 10, s % 10)
+-- Possibly incorrect now with changed base
+quotRemBase : Int -> (Int, Int)
+quotRemBase s = (s // base, s % base)
 
 -- | Addition of natural numbers
 addDigits : Digits -> Digits -> Digits
@@ -156,17 +163,17 @@ addDigits ds1 ds2 =
                ([], [])             -> pushCarry carry acc
                ([], d::ds)          -> goWith acc (d + carry) ds
                (d::ds, [])          -> goWith acc (carry + d) ds
-               (d1::ds1', d2::ds2') -> let (carry', d) = quotRem10 <| d1 + d2 + carry
+               (d1::ds1', d2::ds2') -> let (carry', d) = quotRemBase <| d1 + d2 + carry
                                        in go (fuel - 1) (d::acc) carry' ds1' ds2'
 
-      goWith acc c' ds = let (carry, d) = quotRem10 <| c'
+      goWith acc c' ds = let (carry, d) = quotRemBase <| c'
                          in goOne 0 (d::acc) carry ds
 
       goOne fuel acc carry ds = 
         if | fuel < 0  -> goOne startFuel acc carry ds
            | otherwise -> case ds of
                [] -> pushCarry carry acc
-               (d :: ds') -> let (carry', d') = quotRem10 <| d + carry
+               (d :: ds') -> let (carry', d') = quotRemBase <| d + carry
                              in goOne (fuel - 1) (d'::acc) carry' ds'
   in List.reverse << trampoline <| go startFuel [] 0 ds1 ds2
 
@@ -188,7 +195,7 @@ subtractFromGreater minuend subtrahend =
                (m::ms, s::ss) ->
                  let newM = m - carry
                      (newM', newCarry) = if newM < s
-                                         then (newM + 10, 1)
+                                         then (newM + base, 1)
                                          else (newM, 0)
                  in go (fuel - 1) ms ss newCarry (newM' - s :: diffAcc)
       carryOut fuel minuend carry diffAcc = 
@@ -197,7 +204,7 @@ subtractFromGreater minuend subtrahend =
                  []    -> Done diffAcc
                  m::ms -> let newM = m - carry
                               (newM', newCarry) = if newM < 0
-                                                  then (newM + 10, 1)
+                                                  then (newM + base, 1)
                                                   else (newM, 0)
                           in carryOut (fuel - 1) ms newCarry (newM' :: diffAcc)
   in List.reverse << dropZeros << trampoline <| go startFuel minuend subtrahend 0 []
@@ -232,16 +239,16 @@ multDigits ds1 ds2 =
                ([],     0) -> Done (List.reverse acc)
                ([],     _) -> Done (List.reverse (carry :: acc))
                (d::ds', _) ->
-                 let (newCarry, newD) = quotRem10 (d * digit + carry)
+                 let (newCarry, newD) = quotRemBase (d * digit + carry)
                  in go (fuel - 1) digit ds' newCarry (newD :: acc)
       multDigit d = trampoline (go startFuel d big 0 [])
   in List.foldl1 addDigits << List.indexedMap (\i d -> (multDigit d) `leftShift` i) <| less
 
 one : BigInt
-one = fromString "1"
+one = unsafeFromString "1"
 
 two : BigInt
-two = fromString "2"
+two = unsafeFromString "2"
 
 -- Quotient and remainder
 quotRem : BigInt -> BigInt -> (BigInt, BigInt)
@@ -316,8 +323,8 @@ half m = m `div` two
 
 -- returns the floor of the sqroot
 -- uses Newton's Method
-flroot : BigInt -> BigInt
-flroot m = case m of
+sqrt : BigInt -> BigInt
+sqrt m = case m of
   Zero         -> zero
   Negative _   -> Debug.crash "Can't take square root of a negative number"
   Positive [1] -> one
@@ -404,32 +411,3 @@ range lo hi = case compare lo hi of
 
 dropZeros : List Int -> List Int
 dropZeros = dropWhile ((==) 0)
-
-length : List a -> BigInt
-length = List.foldl (\_ i -> inc i) zero
-
-splitAt : BigInt -> List a -> (List a, List a)
-splitAt count xs =
-  let go fuel count front back =
-        if | fuel < 0  -> Continue (\_ -> go startFuel count front back)
-           | otherwise -> case compare count zero of
-               LT -> Debug.crash "bug: permsE: splitAt: negative index!"
-               EQ -> Done (List.reverse front, back)
-               GT -> case back of
-                 []    -> Done (List.reverse front, [])
-                 x::xs -> go (fuel - 1) (dec count) (x::front) xs
-  in trampoline (go startFuel count [] xs)
-
-take : BigInt -> List a -> List a
-take i = fst << splitAt i
-
-drop : BigInt -> List a -> List a
-drop i = snd << splitAt i
-
-remove : BigInt -> List a -> List a
-remove n xs =
-  let (front, back) = splitAt n xs
-      rest = case back of
-        []    -> []
-        _::xs -> xs
-  in front ++ rest

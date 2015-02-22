@@ -1,12 +1,12 @@
 {
     "version": "1.0.0",
-    "summary": "helpful summary of your project, less than 80 characters",
-    "repository": "https://github.com/USER/PROJECT.git",
+    "summary": "Arbitrary-Sized Integers",
+    "repository": "https://github.com/maxsnew/BigInt.git",
     "license": "BSD3",
     "source-directories": [
-        "."
+        "src"
     ],
-    "exposed-modules": [ "BigInt", "BigInt.Convenient" ],
+    "exposed-modules": [ "BigInt", "BigInt.Convenient", "BigInt.List" ],
     "dependencies": {
         "elm-lang/core": "1.1.1 <= v < 2.0.0"
     }
