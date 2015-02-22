@@ -1,23 +1,18 @@
 module BigInt.Err where
 
-import Either (Either(..))
-import Either
 import List
+import List ((::), foldr)
+import Result
+import Result (Result(..))
 
+either : (e -> b) -> (a -> b) -> Result e a -> b
+either kerr kok r =
+  case r of
+    Err e -> kerr e
+    Ok  x -> kok  x
 
-map : (a -> b) -> Either e a -> Either e b
-map f = Either.either Left (Right << f)
+(<=<) : (b -> Result e c) -> (a -> Result e b) -> a -> Result e c
+(<=<) f g x = g x `Result.andThen` f
 
-andThen : Either e a -> (a -> Either e b) -> Either e b
-andThen e k = Either.either Left k e
-
-(<=<) : (b -> Either e c) -> (a -> Either e b) -> a -> Either e c
-(<=<) f g x = g x `andThen` f
-
-forEach : [a] -> (a -> Either e b) -> Either e [b]
-forEach xs k = 
-  let consM : Either e b -> Either e [b] -> Either e [b]
-      consM ex exs = ex  `andThen` (\x -> 
-                     exs `andThen` (\xs ->
-                     Right (x :: xs)))
-  in foldr consM (Right []) << List.map k <| xs
+forEach : List a -> (a -> Result e b) -> Result e (List b)
+forEach xs k = foldr (Result.map2 (::)) (Ok []) << List.map k <| xs

@@ -1,4 +1,4 @@
-module BigInt.Convenient where
+module BigInt.Convenient (zero, one, two, three, four, five, six, seven, eight, nine) where
 
 import BigInt as I
 
