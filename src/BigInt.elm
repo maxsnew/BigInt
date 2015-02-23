@@ -1,7 +1,8 @@
 module BigInt (BigInt, fromString, show, negate, add, subtract,
-    multiply, quotRem, div, mod, sqrt, compare, lt, gt, gte, max, min,
-    isZero, abs, range)
+               multiply, quotRem, div, mod, sqrt, compare, lt, gt, gte, max, min,
+               isZero, abs, range)
     where
+
 
 import Basics
 import Debug
@@ -26,9 +27,11 @@ type alias Digits = List Digit
 -- A BigInt digit, invariant: d : Digit ==> (0 <= d <= base-1)
 type alias Digit  = Int
 
--- todo: replace with 10^7: Highest power of 10 such that base ^ 2 < maxInt, needed for multiply
+-- TODO: this might make division slower, but maybe we can just do a better division
+-- 10^7: Highest power of 10 such that base ^ 2 < maxInt, needed for multiply
 -- Power of 10 so it can be quickly changed to base 10
-base = 10
+baseZeros = 7
+base = 10 ^ baseZeros
 
 type alias Fuel = Int
 startFuel : Fuel
@@ -75,24 +78,36 @@ fromString =
         '-'::c::more -> Ok (False, c::more)
         c::more      -> Ok (True, cs)
 
-      readDigit c = Dict.get c digits
+      checkDigit c = Dict.member c digits
       
-      readDigits : (Bool, List Char) -> Result String (Bool, List Int)
-      readDigits (b, cs) = Result.map ((,) b) << Err.forEach cs <| \c ->
-        case readDigit c of
-          Nothing -> Err (String.cons c " is not a digit.")
-          Just  d -> Ok d
+      checkDigits : (Bool, List Char) -> Result String (Bool, List Char)
+      checkDigits (b, cs) = Result.map ((,) b) << Err.forEach cs <| \c ->
+        case checkDigit c of
+          False -> Err (String.cons c " is not a digit.")
+          True  -> Ok c
 
-      interpret : (Bool, List Int) -> BigInt
+      bunch : List Char -> List (List Char)
+      bunch cs =
+        case splitAt (baseZeros) cs of
+          ([], []) -> []
+          (l,  []) -> [l]
+          (l,   r) -> l :: bunch r
+
+      readSmallInt : List Char -> Int
+      readSmallInt cs = case String.toInt (String.fromList cs) of
+                          Ok n -> n
+                          Err e -> Debug.crash ("Internal error in BigInt, please report: readSmallInt " ++ e)
+
+      interpret : (Bool, List Char) -> BigInt
       interpret (b, is) = 
-        let shortened = dropZeros is
-            ctor b = if b then Positive else Negative
+        let shortened = dropWhile ((==) '0') is
+            ctor = if b then Positive else Negative
               
         in if List.isEmpty shortened
            then Zero
-           else ctor b (List.reverse shortened)
+           else ctor (List.map (readSmallInt << List.reverse) (bunch (List.reverse shortened)))
 
-  in Result.map interpret << (readDigits <=< getSign) << String.toList
+  in Result.map interpret << (checkDigits <=< getSign) << String.toList
 
 digits : Dict Char Int
 digits = Dict.fromList [ ('0', 0)
@@ -103,17 +118,39 @@ digits = Dict.fromList [ ('0', 0)
                        , ('5', 5)
                        , ('6', 6)
                        , ('7', 7)
-                       , ('8', 8)
+                      , ('8', 8)
                        , ('9', 9) ]
+
+pad : String -> String
+pad s = 
+  let len = String.length s
+  in 
+    if | len < baseZeros -> (String.fromList (List.repeat (baseZeros - len) '0')) ++ s
+       | otherwise       -> s
+
+
+digitString : Digits -> String
+digitString = String.fromList <<
+              dropWhile ((==) '0') <<
+              String.toList <<
+              String.join "" << 
+              List.map (pad << toString) <<
+              List.reverse
 
 show : BigInt -> String
 show i = 
-  let digitString : Digits -> String
-      digitString = String.join "" << List.map toString << List.reverse
-  in case i of
+  case i of
     Zero        -> "0"
     Positive ds -> digitString ds
     Negative ds -> String.cons '-' << digitString <| ds
+
+splitAt : Int -> List a -> (List a, List a)
+splitAt n xs =
+  case (n, xs) of
+    (0,     _) -> ([], xs)
+    (_,    []) -> ([], [])
+    (_, x::xs) -> let (l', r') = splitAt (n-1) xs
+                  in (x::l', r')
 
 dropWhile : (a -> Bool) -> List a -> List a
 dropWhile p =
@@ -310,13 +347,15 @@ divideDigits ds1 ds2 = case compareDigits ds1 ds2 of
 -- arguments should both be positive
 div1Digit : Digits -> Digits -> (Digit, Digits)
 div1Digit dvend dvisor =
-  let go cur =
-        let prod = [cur] `multDigits` dvisor
-        in case compareDigits prod dvend of
-          LT -> go (cur+1)
-          EQ -> (cur, [])
-          GT -> (cur - 1, subtractFromGreater dvend ([cur - 1] `multDigits` dvisor))
-  in  go 1
+  let go fuel cur =
+          if | fuel < 0 -> Continue (\_ -> go startFuel cur)
+             | otherwise ->
+                 let prod = [cur] `multDigits` dvisor
+                 in case compareDigits prod dvend of
+                      LT -> go (fuel-1) (cur+1)
+                      EQ -> Done (cur, [])
+                      GT -> Done (cur - 1, subtractFromGreater dvend ([cur - 1] `multDigits` dvisor))
+  in  trampoline (go startFuel 1)
 
 half : BigInt -> BigInt
 half m = m `div` two
