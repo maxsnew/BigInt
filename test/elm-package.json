@@ -10,6 +10,7 @@
     "exposed-modules": ["Test"],
     "dependencies": {
         "elm-lang/core": "1.1.1 <= v < 2.0.0",
-        "deadfoxygrandpa/Elm-Test": "1.0.0 <= v < 2.0.0"
+        "deadfoxygrandpa/Elm-Test": "1.0.0 <= v < 2.0.0",
+        "maxsnew/IO" : "1.0.0 <= v < 2.0.0"
     }
 }

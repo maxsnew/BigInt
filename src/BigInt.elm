@@ -9,6 +9,7 @@ import Debug
 import Dict (Dict)
 import Dict
 import List
+import List ((::))
 import Result
 import String
 import Trampoline (Trampoline(Continue, Done), trampoline)
