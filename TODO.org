@@ -17,6 +17,6 @@
      - [ ] General nth root
    - [ ] exponentation
 ** Design (later)
-   - [ ] Consider other representations
+   - [-] Consider other representations
      - [ ] String
-     - [ ] base 2^32 or something instead of 10
+     - [X] base: 10^7 
